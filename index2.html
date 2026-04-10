@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>烏冬的旅店 - 雲端同步版</title>
+    <style>
+        body { 
+            font-family: -apple-system, "Helvetica Neue", sans-serif; 
+            background: #efead8; 
+            color: #5d4037; 
+            padding: 12px; 
+            margin: 0 auto; 
+            max-width: 500px; 
+            line-height: 1.3; 
+            min-height: 100vh;
+        }
+        .card { background: white; border-radius: 12px; padding: 12px; box-shadow: 0 3px 6px rgba(0,0,0,0.08); margin-bottom: 12px; }
+        h2 { border-left: 5px solid #e6a23c; padding-left: 10px; font-size: 1.15rem; margin: 8px 0 10px 0; display: flex; align-items: center; justify-content: space-between; }
+        .timer-box { font-size: 1.45rem; font-weight: bold; color: #d35400; text-align: center; margin: 8px 0; }
+        
+        .input-group { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+        input, button { padding: 8px 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 0.95rem; }
+        button { background: #e6a23c; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #d48f2c; }
+        button.small { padding: 4px 8px; font-size: 0.82rem; }
+        button.sync-icon-btn { background: #3498db; padding: 2px 8px; border-radius: 4px; font-size: 0.9rem; }
+
+        /* 倒數計時按鈕樣式 */
+        .ad-timer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .ad-btn { 
+            background: #67c23a; padding: 10px; border-radius: 8px; text-align: center; 
+            font-size: 0.85rem; display: flex; flex-direction: column; gap: 2px;
+        }
+        .ad-btn.active { background: #909399; }
+        .ad-btn .time-left { font-weight: bold; font-size: 1rem; }
+
+        .task-list { list-style: none; padding: 0; margin: 0; }
+        .task-item, .daily-task-item, .infinite-task-item, .point-item { 
+            display: flex; align-items: center; padding: 6px 0; border-bottom: 1px dashed #eee; gap: 6px; font-size: 0.95rem;
+        }
+        .task-item.completed, .daily-task-item.completed { opacity: 0.65; text-decoration: line-through; background: #f8f1e3; border-radius: 6px; }
+        .time-tag { background: #795548; color: white; padding: 3px 7px; border-radius: 5px; font-size: 0.82rem; min-width: 60px; text-align: center; }
+        .date-separator { padding: 10px 0 5px; color: #e67e22; font-weight: bold; border-bottom: 2px solid #e6a23c; margin: 10px 0 5px; font-size: 0.9rem; text-align: center; background: #fff5e6; border-radius: 4px; }
+        
+        .sync-status { font-size: 0.75rem; color: #888; font-weight: normal; margin-left: auto; margin-right: 5px; }
+        .ghost-input { border: none; background: transparent; color: inherit; font-family: inherit; font-size: inherit; padding: 2px; width: 100%; }
+        .ghost-input:focus { background: #fff9e6; outline: 1px solid #e6a23c; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>🕒 現在時間 
+            <span id="syncStatus" class="sync-status">初始化...</span>
+            <button onclick="pullFromCloud()" class="sync-icon-btn">☁️</button>
+        </h2>
+        <div id="currentTime" class="timer-box">--:--:--</div>
+        <div style="display: flex; gap: 8px; justify-content: center;">
+             <button onclick="exportData()" class="small" style="background:#7f8c8d;">📤 匯出</button>
+             <button onclick="document.getElementById('importFile').click()" class="small" style="background:#7f8c8d;">📥 匯入</button>
+             <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>➕ 新增任務 <button onclick="pushToCloud()" class="sync-icon-btn">☁️</button></h2>
+        <div class="input-group">
+            <input type="text" id="taskName" placeholder="任務名稱" style="flex: 2;">
+            <input type="datetime-local" id="taskDateTime">
+            <button onclick="addTask()">加入</button>
+        </div>
+        <div class="input-group">
+            <input type="number" id="addHours" placeholder="小時" style="width:70px;">
+            <input type="number" id="addMinutes" placeholder="分鐘" style="width:70px;">
+            <button onclick="quickAddTask()">現在 + 時間</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>⏳ 任務時間軸 
+            <div>
+                <button onclick="clearAllCheckboxes()" class="small" style="background:#7f8c8d;">清勾</button>
+                <button onclick="pushToCloud()" class="sync-icon-btn">☁️</button>
+            </div>
+        </h2>
+        <ul id="timeline" class="task-list"></ul>
+    </div>
+
+    <div class="card">
+        <h2>🌅 每日任務 
+            <div>
+                <button onclick="clearDailyCheckboxes()" class="small" style="background:#7f8c8d;">清勾</button>
+                <button onclick="pushToCloud()" class="sync-icon-btn">☁️</button>
+            </div>
+        </h2>
+        <div id="dailyTasksContainer"></div>
+        <div style="margin-top:8px; display:flex; gap:6px;">
+            <input type="text" id="newDailyTask" placeholder="新增每日任務..." style="flex:1;">
+            <button onclick="addDailyTask()">新增</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📊 點數 & 💎 無限 <button onclick="pushToCloud()" class="sync-icon-btn">☁️</button></h2>
+        <div id="pointContainer"></div>
+        <div id="infiniteTasksContainer" style="margin-top:10px; border-top: 1px solid #eee; padding-top: 10px;"></div>
+        <div style="margin-top:8px; display:flex; gap:6px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            <input type="text" id="newInfiniteName" placeholder="名稱" style="width:80px;">
+            <input type="text" id="newInfiniteDesc" placeholder="描述" style="flex:1;">
+            <button onclick="addInfiniteTask()">新增</button>
+        </div>
+
+        <h3 style="font-size: 0.95rem; margin: 15px 0 5px 0; color: #e67e22;">📺 廣告雙倍收益 (30分)</h3>
+        <div class="ad-timer-grid">
+            <div id="ad-美容室" class="ad-btn" onclick="startAdTimer('美容室')"><span>美容室</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-小費箱" class="ad-btn" onclick="startAdTimer('小費箱')"><span>小費箱</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-電影院" class="ad-btn" onclick="startAdTimer('電影院')"><span>電影院</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-占卜室" class="ad-btn" onclick="startAdTimer('占卜室')"><span>占卜室</span><span class="time-left">點擊開始</span></div>
+        </div>
+    </div>
+
+    <script>
+        const BIN_ID = '69d6e6ef36566621a8919517'; 
+        const API_KEY = '$2a$10$2JIlWiPtLXn8r0RREEWH.u7jql.aaSkv76Ma9Qs5no7/tL3KwsHUe';
+
+        let tasks = [];
+        let dailyTasks = ["每日免费风車/糖果", "宠物三消游戏重置", "電影院免费签约刷新"];
+        let dailyChecked = {};
+        let infiniteTasks = [{ name: "溫泉體力", desc: "15/15" }];
+        let pointRooms = [{ name: "占卜室", current: "", max: "" }, { name: "美容室", current: "", max: "" }, { name: "門口小費箱", current: "", max: "" }];
+        let adTimers = {}; // 儲存各房間廣告結束時間戳
+
+        async function pushToCloud() {
+            const statusLabel = document.getElementById('syncStatus');
+            statusLabel.innerText = '同步中...';
+            const data = { tasks, dailyTasks, dailyChecked, infiniteTasks, pointRooms, adTimers };
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
+                    body: JSON.stringify(data)
+                });
+                statusLabel.innerText = '✅ 雲端已同步';
+            } catch (err) { statusLabel.innerText = '❌ 網路錯誤'; }
+        }
+
+        async function pullFromCloud() {
+            const statusLabel = document.getElementById('syncStatus');
+            statusLabel.innerText = '更新中...';
+            try {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': API_KEY } });
+                const result = await response.json();
+                const data = result.record;
+                if (data) {
+                    tasks = data.tasks || [];
+                    dailyTasks = data.dailyTasks || dailyTasks;
+                    dailyChecked = data.dailyChecked || {};
+                    infiniteTasks = data.infiniteTasks || [];
+                    pointRooms = data.pointRooms || pointRooms;
+                    adTimers = data.adTimers || {};
+                    renderAll();
+                    statusLabel.innerText = '✅ 資料已最新';
+                }
+            } catch (err) { statusLabel.innerText = '❌ 讀取失敗'; }
+        }
+
+        function startAdTimer(room) {
+            const endTime = Date.now() + 30 * 60 * 1000;
+            adTimers[room] = endTime;
+            pushToCloud();
+            renderAdTimers();
+        }
+
+        function renderAdTimers() {
+            const rooms = ['美容室', '小費箱', '電影院', '占卜室'];
+            const now = Date.now();
+            rooms.forEach(room => {
+                const btn = document.getElementById(`ad-${room}`);
+                const timeLeftSpan = btn.querySelector('.time-left');
+                const endTime = adTimers[room] || 0;
+
+                if (endTime > now) {
+                    const diff = Math.floor((endTime - now) / 1000);
+                    const m = String(Math.floor(diff / 60)).padStart(2, '0');
+                    const s = String(diff % 60).padStart(2, '0');
+                    timeLeftSpan.innerText = `${m}:${s}`;
+                    btn.classList.add('active');
+                } else {
+                    timeLeftSpan.innerText = '點擊開始';
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function renderAll() {
+            renderTimeline();
+            renderDailyTasks();
+            renderPointRooms();
+            renderInfiniteTasks();
+            renderAdTimers();
+        }
+
+        // --- 以下為原有渲染與功能邏輯 (維持不變) ---
+
+        function renderTimeline() {
+            const list = document.getElementById('timeline');
+            list.innerHTML = '';
+            tasks.sort((a, b) => (a.datetime ? new Date(a.datetime).getTime() : Infinity) - (b.datetime ? new Date(b.datetime).getTime() : Infinity));
+            let lastDateStr = "";
+            tasks.forEach((task, index) => {
+                if (task.datetime) {
+                    const dateObj = new Date(task.datetime);
+                    const dateStr = `${dateObj.getFullYear()}/${dateObj.getMonth()+1}/${dateObj.getDate()}`;
+                    if (dateStr !== lastDateStr) {
+                        const sep = document.createElement('li'); sep.className = 'date-separator'; sep.innerText = `📅 ${dateStr}`;
+                        list.appendChild(sep); lastDateStr = dateStr;
+                    }
+                }
+                const d = task.datetime ? new Date(task.datetime) : null;
+                const li = document.createElement('li'); li.className = `task-item ${task.completed ? 'completed' : ''}`;
+                li.innerHTML = `
+                    <span class="time-tag">${d ? (String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')) : "無"}</span>
+                    <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="tasks[${index}].completed=this.checked; renderTimeline();">
+                    <span style="flex:1;">${task.name}</span>
+                    <button onclick="addNextOccurrence(${index})" class="small">下次</button>
+                    <button onclick="tasks.splice(${index},1); renderTimeline();" class="small" style="background:#c0392b;">刪</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function addNextOccurrence(index) {
+            const h = prompt(`「${tasks[index].name}」幾小時後？`, "2"); if (h === null) return;
+            const m = prompt(`幾分鐘後？`, "0"); if (m === null) return;
+            const now = new Date(); now.setHours(now.getHours() + parseInt(h || 0)); now.setMinutes(now.getMinutes() + parseInt(m || 0));
+            const offset = now.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+            tasks.push({ name: tasks[index].name, datetime: localISOTime, completed: false }); renderTimeline();
+        }
+
+        function renderDailyTasks() {
+            const container = document.getElementById('dailyTasksContainer'); container.innerHTML = '';
+            dailyTasks.forEach((task, index) => {
+                const isChecked = !!dailyChecked[task];
+                const div = document.createElement('div'); div.className = `daily-task-item ${isChecked ? 'completed' : ''}`;
+                div.draggable = true;
+                div.innerHTML = `<input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleDaily('${task.replace(/'/g, "\\'")}', this.checked)">
+                    <input type="text" value="${task}" onchange="dailyTasks[${index}]=this.value" class="ghost-input" style="flex:1;">
+                    <button onclick="dailyTasks.splice(${index},1); renderDailyTasks();" class="small" style="background:#c0392b;">刪</button>`;
+                div.ondragstart = () => { dragSourceIndex = index; div.classList.add('dragging'); };
+                div.ondragover = (e) => { e.preventDefault(); div.classList.add('over'); };
+                div.ondragleave = () => div.classList.remove('over');
+                div.ondrop = () => { const item = dailyTasks.splice(dragSourceIndex, 1)[0]; dailyTasks.splice(index, 0, item); renderDailyTasks(); };
+                container.appendChild(div);
+            });
+        }
+
+        function toggleDaily(name, checked) { if (checked) dailyChecked[name] = true; else delete dailyChecked[name]; renderDailyTasks(); }
+
+        function renderPointRooms() {
+            const container = document.getElementById('pointContainer'); container.innerHTML = '';
+            pointRooms.forEach((room, i) => {
+                const div = document.createElement('div'); div.className = 'point-item';
+                div.innerHTML = `<input type="text" value="${room.name}" style="flex:1; font-weight:bold;" class="ghost-input" onchange="pointRooms[${i}].name=this.value">
+                <input type="text" value="${room.current}" style="width:50px; text-align:right;" placeholder="0" onchange="pointRooms[${i}].current=this.value"> / 
+                <input type="text" value="${room.max}" style="width:50px;" placeholder="Max" onchange="pointRooms[${i}].max=this.value">
+                <button onclick="pointRooms.splice(${i},1);renderPointRooms();" class="small" style="background:#c0392b;">刪</button>`;
+                container.appendChild(div);
+            });
+        }
+
+        function renderInfiniteTasks() {
+            const container = document.getElementById('infiniteTasksContainer'); container.innerHTML = '';
+            infiniteTasks.forEach((item, i) => {
+                const div = document.createElement('div'); div.className = 'infinite-task-item';
+                div.innerHTML = `<input type="text" value="${item.name}" style="width:80px; font-weight:bold;" class="ghost-input" onchange="infiniteTasks[${i}].name=this.value"> 
+                <input type="text" value="${item.desc}" style="flex:1" class="ghost-input" onchange="infiniteTasks[${i}].desc=this.value"> 
+                <button onclick="infiniteTasks.splice(${i},1);renderInfiniteTasks();" class="small" style="background:#c0392b;">刪</button>`;
+                container.appendChild(div);
+            });
+        }
+
+        function addTask() {
+            const name = document.getElementById('taskName').value; const dt = document.getElementById('taskDateTime').value;
+            if(!name) return; tasks.push({ name, datetime: dt, completed: false }); renderTimeline();
+        }
+
+        function quickAddTask() {
+            const name = document.getElementById('taskName').value;
+            const h = parseInt(document.getElementById('addHours').value) || 0; const m = parseInt(document.getElementById('addMinutes').value) || 0;
+            if(!name) return; const now = new Date(); now.setHours(now.getHours() + h); now.setMinutes(now.getMinutes() + m);
+            const offset = now.getTimezoneOffset() * 60000; const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+            tasks.push({ name, datetime: localISOTime, completed: false }); renderTimeline();
+        }
+
+        function addDailyTask() { const val = document.getElementById('newDailyTask').value; if(val) { dailyTasks.push(val); renderDailyTasks(); document.getElementById('newDailyTask').value=''; } }
+
+        function addInfiniteTask() {
+            const n = document.getElementById('newInfiniteName').value; const d = document.getElementById('newInfiniteDesc').value;
+            if(n) { infiniteTasks.push({name:n, desc:d}); renderInfiniteTasks(); document.getElementById('newInfiniteName').value=''; document.getElementById('newInfiniteDesc').value=''; }
+        }
+
+        function clearAllCheckboxes() { tasks.forEach(t => t.completed = false); renderTimeline(); }
+        function clearDailyCheckboxes() { dailyChecked = {}; renderDailyTasks(); }
+        function exportData() { const data = { tasks, dailyTasks, dailyChecked, infiniteTasks, pointRooms, adTimers }; const blob = new Blob([JSON.stringify(data)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `烏冬備忘錄_${new Date().toISOString().slice(0,10)}.json`; a.click(); }
+        function importData(event) { const reader = new FileReader(); reader.onload = async (e) => { const data = JSON.parse(e.target.result); tasks = data.tasks || []; dailyTasks = data.dailyTasks || dailyTasks; dailyChecked = data.dailyChecked || {}; infiniteTasks = data.infiniteTasks || []; pointRooms = data.pointRooms || pointRooms; adTimers = data.adTimers || {}; renderAll(); pushToCloud(); }; reader.readAsText(event.target.files[0]); }
+
+        function updateClock() {
+            document.getElementById('currentTime').innerText = new Date().toLocaleTimeString('zh-TW', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            renderAdTimers(); // 每秒更新一次廣告倒數
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+        pullFromCloud();
+    </script>
+</body>
+</html>
