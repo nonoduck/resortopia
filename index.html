@@ -111,12 +111,12 @@
             <button onclick="addInfiniteTask()">新增</button>
         </div>
 
-        <h3 style="font-size: 0.95rem; margin: 15px 0 5px 0; color: #e67e22;">📺 廣告雙倍收益 (30分)</h3>
+        <h3 style="font-size: 0.95rem; margin: 15px 0 5px 0; color: #e67e22;">📺 廣告收益倒數</h3>
         <div class="ad-timer-grid">
-            <div id="ad-美容室" class="ad-btn" onclick="startAdTimer('美容室')"><span>美容室</span><span class="time-left">點擊開始</span></div>
-            <div id="ad-小費箱" class="ad-btn" onclick="startAdTimer('小費箱')"><span>小費箱</span><span class="time-left">點擊開始</span></div>
-            <div id="ad-電影院" class="ad-btn" onclick="startAdTimer('電影院')"><span>電影院</span><span class="time-left">點擊開始</span></div>
-            <div id="ad-占卜室" class="ad-btn" onclick="startAdTimer('占卜室')"><span>占卜室</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-美容室" class="ad-btn" onclick="startAdTimer('美容室')"><span>美容室 (60m)</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-小費箱" class="ad-btn" onclick="startAdTimer('小費箱')"><span>小費箱 (20m)</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-電影院" class="ad-btn" onclick="startAdTimer('電影院')"><span>電影院 (30m)</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-占卜室" class="ad-btn" onclick="startAdTimer('占卜室')"><span>占卜室 (30m)</span><span class="time-left">點擊開始</span></div>
         </div>
     </div>
 
@@ -124,12 +124,20 @@
         const BIN_ID = '69d6e6ef36566621a8919517'; 
         const API_KEY = '$2a$10$2JIlWiPtLXn8r0RREEWH.u7jql.aaSkv76Ma9Qs5no7/tL3KwsHUe';
 
+        // 倒數時長設定 (單位：分鐘)
+        const AD_DURATION = {
+            '美容室': 60,
+            '小費箱': 20,
+            '電影院': 30,
+            '占卜室': 30
+        };
+
         let tasks = [];
         let dailyTasks = ["每日免费风車/糖果", "宠物三消游戏重置", "電影院免费签约刷新"];
         let dailyChecked = {};
         let infiniteTasks = [{ name: "溫泉體力", desc: "15/15" }];
         let pointRooms = [{ name: "占卜室", current: "", max: "" }, { name: "美容室", current: "", max: "" }, { name: "門口小費箱", current: "", max: "" }];
-        let adTimers = {}; // 儲存各房間廣告結束時間戳
+        let adTimers = {}; 
 
         async function pushToCloud() {
             const statusLabel = document.getElementById('syncStatus');
@@ -166,7 +174,8 @@
         }
 
         function startAdTimer(room) {
-            const endTime = Date.now() + 30 * 60 * 1000;
+            const duration = AD_DURATION[room] || 30; // 取得設定時間，預設 30 分
+            const endTime = Date.now() + duration * 60 * 1000;
             adTimers[room] = endTime;
             pushToCloud();
             renderAdTimers();
@@ -177,6 +186,7 @@
             const now = Date.now();
             rooms.forEach(room => {
                 const btn = document.getElementById(`ad-${room}`);
+                if (!btn) return;
                 const timeLeftSpan = btn.querySelector('.time-left');
                 const endTime = adTimers[room] || 0;
 
@@ -200,8 +210,6 @@
             renderInfiniteTasks();
             renderAdTimers();
         }
-
-        // --- 以下為原有渲染與功能邏輯 (維持不變) ---
 
         function renderTimeline() {
             const list = document.getElementById('timeline');
@@ -308,7 +316,7 @@
 
         function updateClock() {
             document.getElementById('currentTime').innerText = new Date().toLocaleTimeString('zh-TW', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            renderAdTimers(); // 每秒更新一次廣告倒數
+            renderAdTimers(); 
         }
         setInterval(updateClock, 1000);
         updateClock();
