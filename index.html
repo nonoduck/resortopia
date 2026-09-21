@@ -26,14 +26,14 @@
         button.small { padding: 4px 8px; font-size: 0.82rem; }
         button.sync-icon-btn { background: #3498db; padding: 2px 8px; border-radius: 4px; font-size: 0.9rem; }
 
-        /* 倒數計時按鈕樣式 */
-        .ad-timer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        /* 倒數計時按鈕樣式 (改為 4 欄單列顯示) */
+        .ad-timer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
         .ad-btn { 
-            background: #67c23a; padding: 10px; border-radius: 8px; text-align: center; 
-            font-size: 0.85rem; display: flex; flex-direction: column; gap: 2px;
+            background: #67c23a; padding: 6px 2px; border-radius: 8px; text-align: center; 
+            font-size: 0.75rem; display: flex; flex-direction: column; gap: 2px; cursor: pointer;
         }
         .ad-btn.active { background: #909399; }
-        .ad-btn .time-left { font-weight: bold; font-size: 1rem; }
+        .ad-btn .time-left { font-weight: bold; font-size: 0.85rem; }
 
         .task-list { list-style: none; padding: 0; margin: 0; }
         .task-item, .daily-task-item, .infinite-task-item, .point-item { 
@@ -50,6 +50,7 @@
 </head>
 <body>
 
+    <!-- 1. 時間與雲端操作區塊 -->
     <div class="card">
         <h2>🕒 現在時間 
             <span id="syncStatus" class="sync-status">初始化...</span>
@@ -63,6 +64,18 @@
         </div>
     </div>
 
+    <!-- 2. 移動至第二區塊的廣告收益倒數 (單列 4 格) -->
+    <div class="card">
+        <h2 style="margin-bottom: 5px;">📺 廣告收益倒數 <button onclick="pushToCloud()" class="sync-icon-btn">☁️</button></h2>
+        <div class="ad-timer-grid">
+            <div id="ad-美容室" class="ad-btn" onclick="startAdTimer('美容室')"><span>美容室(50m)</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-小費箱" class="ad-btn" onclick="startAdTimer('小費箱')"><span>小費箱(12m)</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-電影院" class="ad-btn" onclick="startAdTimer('電影院')"><span>電影院(30m)</span><span class="time-left">點擊開始</span></div>
+            <div id="ad-占卜室" class="ad-btn" onclick="startAdTimer('占卜室')"><span>占卜室(30m)</span><span class="time-left">點擊開始</span></div>
+        </div>
+    </div>
+
+    <!-- 3. 新增任務區塊 -->
     <div class="card">
         <h2>➕ 新增任務 <button onclick="pushToCloud()" class="sync-icon-btn">☁️</button></h2>
         <div class="input-group">
@@ -77,6 +90,7 @@
         </div>
     </div>
 
+    <!-- 4. 任務時間軸 -->
     <div class="card">
         <h2>⏳ 任務時間軸 
             <div>
@@ -87,6 +101,7 @@
         <ul id="timeline" class="task-list"></ul>
     </div>
 
+    <!-- 5. 每日任務 -->
     <div class="card">
         <h2>🌅 每日任務 
             <div>
@@ -101,22 +116,15 @@
         </div>
     </div>
 
+    <!-- 6. 點數 & 無限 -->
     <div class="card">
         <h2>📊 點數 & 💎 無限 <button onclick="pushToCloud()" class="sync-icon-btn">☁️</button></h2>
         <div id="pointContainer"></div>
         <div id="infiniteTasksContainer" style="margin-top:10px; border-top: 1px solid #eee; padding-top: 10px;"></div>
-        <div style="margin-top:8px; display:flex; gap:6px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+        <div style="margin-top:8px; display:flex; gap:6px;">
             <input type="text" id="newInfiniteName" placeholder="名稱" style="width:80px;">
             <input type="text" id="newInfiniteDesc" placeholder="描述" style="flex:1;">
             <button onclick="addInfiniteTask()">新增</button>
-        </div>
-
-        <h3 style="font-size: 0.95rem; margin: 15px 0 5px 0; color: #e67e22;">📺 廣告收益倒數</h3>
-        <div class="ad-timer-grid">
-            <div id="ad-美容室" class="ad-btn" onclick="startAdTimer('美容室')"><span>美容室 (50m)</span><span class="time-left">點擊開始</span></div>
-            <div id="ad-小費箱" class="ad-btn" onclick="startAdTimer('小費箱')"><span>小費箱 (12m)</span><span class="time-left">點擊開始</span></div>
-            <div id="ad-電影院" class="ad-btn" onclick="startAdTimer('電影院')"><span>電影院 (30m)</span><span class="time-left">點擊開始</span></div>
-            <div id="ad-占卜室" class="ad-btn" onclick="startAdTimer('占卜室')"><span>占卜室 (30m)</span><span class="time-left">點擊開始</span></div>
         </div>
     </div>
 
